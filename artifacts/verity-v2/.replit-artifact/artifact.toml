@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Verity V2"
+version = "1.0.0"
+id = "artifacts/verity-v2"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23019
+
+[services.development]
+run = "pnpm --filter @workspace/verity-v2 run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/verity-v2", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/verity-v2/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23019"
+BASE_PATH = "/"

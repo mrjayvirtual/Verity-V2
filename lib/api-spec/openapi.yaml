@@ -3,13 +3,17 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Verity V2 — AI Claim Intelligence Platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: analyze
+    description: AI claim analysis
+  - name: scans
+    description: Scan history management
 paths:
   /healthz:
     get:
@@ -24,6 +28,132 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /analyze:
+    post:
+      operationId: analyzeClaim
+      tags: [analyze]
+      summary: Analyze text for claim intelligence
+      description: >
+        Submits text for AI-powered claim intelligence analysis.
+        Returns scores, flags, writing style estimates, and summary.
+        This is NOT fact-checking — it analyzes communication quality and reasoning patterns.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalysisInput"
+      responses:
+        "200":
+          description: Analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: AI service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /scans:
+    get:
+      operationId: listScans
+      tags: [scans]
+      summary: List recent scans
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: List of scans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Scan"
+    post:
+      operationId: createScan
+      tags: [scans]
+      summary: Save a scan to history
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScanInput"
+      responses:
+        "201":
+          description: Saved scan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scan"
+
+  /scans/stats:
+    get:
+      operationId: getScanStats
+      tags: [scans]
+      summary: Get scan statistics and aggregates
+      responses:
+        "200":
+          description: Scan stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanStats"
+
+  /scans/{id}:
+    get:
+      operationId: getScan
+      tags: [scans]
+      summary: Get a scan by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Scan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scan"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    delete:
+      operationId: deleteScan
+      tags: [scans]
+      summary: Delete a scan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +164,222 @@ components:
       required:
         - status
 
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    AnalysisInput:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 20
+          description: The text to analyze (minimum 20 characters)
+
+    ScoreSet:
+      type: object
+      required:
+        - communicationReliability
+        - reasoningQuality
+        - evidenceStrength
+        - confidenceCalibration
+        - sourceQuality
+        - transparency
+        - overallTrustSignal
+      properties:
+        communicationReliability:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: How clearly and reliably the author communicates
+        reasoningQuality:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Logical coherence and absence of fallacies
+        evidenceStrength:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Quality and quantity of evidence and citations
+        confidenceCalibration:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Whether expressed confidence matches the evidence base
+        sourceQuality:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Presence and credibility of named sources
+        transparency:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Acknowledgment of assumptions and limitations
+        overallTrustSignal:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Holistic trustworthiness signal
+
+    ClaimFlag:
+      type: object
+      required:
+        - type
+        - category
+        - severity
+        - snippet
+        - reasoning
+        - suggestion
+        - impact
+      properties:
+        type:
+          type: string
+          description: The specific flag type (e.g. Overgeneralization)
+        category:
+          type: string
+          description: "Category: Reasoning | Evidence | Language | Confidence | Bias | Structure"
+        severity:
+          type: string
+          enum: [low, medium, high]
+        snippet:
+          type: string
+          description: The problematic phrase or sentence from the text
+        reasoning:
+          type: string
+          description: Why this was flagged
+        suggestion:
+          type: string
+          description: How to improve this
+        impact:
+          type: string
+          description: Why this matters for trust
+        verificationAdvice:
+          type: ["string", "null"]
+          description: What the reader should independently verify
+
+    WritingStyleEstimate:
+      type: object
+      required: [label, probability, description]
+      properties:
+        label:
+          type: string
+          description: Style label (e.g. Human writing, Marketing copy)
+        probability:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Estimated probability (0-100)
+        description:
+          type: string
+          description: One-sentence characterization
+
+    AnalysisResult:
+      type: object
+      required:
+        - scores
+        - flags
+        - writingStyle
+        - summary
+        - riskLevel
+        - analysisDisclaimer
+        - wordCount
+        - sentenceCount
+        - readabilityScore
+        - analysedAt
+      properties:
+        scores:
+          $ref: "#/components/schemas/ScoreSet"
+        flags:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClaimFlag"
+        writingStyle:
+          type: array
+          items:
+            $ref: "#/components/schemas/WritingStyleEstimate"
+        summary:
+          type: string
+          description: 2-3 sentence overall assessment
+        riskLevel:
+          type: string
+          enum: [low, medium, high, critical]
+        analysisDisclaimer:
+          type: string
+          description: Always present disclaimer about not being fact-checking
+        wordCount:
+          type: integer
+        sentenceCount:
+          type: integer
+        readabilityScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Flesch-Kincaid style readability estimate (higher = more readable)
+        analysedAt:
+          type: string
+          format: date-time
+
+    ScanInput:
+      type: object
+      required: [inputText, result]
+      properties:
+        inputText:
+          type: string
+          description: The original text that was analyzed
+        result:
+          $ref: "#/components/schemas/AnalysisResult"
+        title:
+          type: ["string", "null"]
+          description: Optional user-defined title for this scan
+
+    Scan:
+      type: object
+      required: [id, inputText, result, createdAt]
+      properties:
+        id:
+          type: integer
+        inputText:
+          type: string
+        result:
+          $ref: "#/components/schemas/AnalysisResult"
+        title:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    ScanStats:
+      type: object
+      required:
+        - totalScans
+        - avgOverallScore
+        - avgReasoningScore
+        - avgEvidenceScore
+        - highRiskCount
+        - mediumRiskCount
+        - lowRiskCount
+        - criticalRiskCount
+      properties:
+        totalScans:
+          type: integer
+        avgOverallScore:
+          type: number
+        avgReasoningScore:
+          type: number
+        avgEvidenceScore:
+          type: number
+        highRiskCount:
+          type: integer
+        mediumRiskCount:
+          type: integer
+        lowRiskCount:
+          type: integer
+        criticalRiskCount:
+          type: integer
