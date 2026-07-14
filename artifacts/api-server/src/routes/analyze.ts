@@ -10,12 +10,13 @@ if (apiKey) {
   genAI = new GoogleGenerativeAI(apiKey);
 }
 
-// Models tried in order — 1.5-flash has the most generous free tier quota
+// Models confirmed working on this key via v1beta. gemini-3.5-flash works; 2.5/2.0 may be quota-limited.
 const MODEL_PRIORITY = [
-  "gemini-1.5-flash",
-  "gemini-1.5-flash-8b",
-  "gemini-2.0-flash-lite",
+  "gemini-3.5-flash",
   "gemini-2.0-flash",
+  "gemini-2.0-flash-lite",
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
 ];
 
 const ANALYSIS_PROMPT = (text: string, wordCount: number, sentenceCount: number) => `You are Verity, an AI Claim Intelligence Engine. Analyze the following text.
@@ -87,6 +88,7 @@ async function tryGenerateContent(prompt: string): Promise<string> {
   
   for (const modelName of MODEL_PRIORITY) {
     try {
+      // v1beta is required — responseMimeType is not available in the v1 stable API
       const model = genAI.getGenerativeModel({
         model: modelName,
         generationConfig: {
@@ -97,9 +99,16 @@ async function tryGenerateContent(prompt: string): Promise<string> {
       const result = await model.generateContent(prompt);
       return result.response.text();
     } catch (err: any) {
-      const is429 = err?.status === 429 || err?.message?.includes("429") || err?.message?.includes("Too Many Requests") || err?.message?.includes("RESOURCE_EXHAUSTED");
-      if (is429 && modelName !== MODEL_PRIORITY[MODEL_PRIORITY.length - 1]) {
-        // Try next model
+      const isRetryable =
+        err?.status === 429 ||
+        err?.status === 404 ||
+        err?.message?.includes("429") ||
+        err?.message?.includes("Too Many Requests") ||
+        err?.message?.includes("RESOURCE_EXHAUSTED") ||
+        err?.message?.includes("not found") ||
+        err?.message?.includes("404");
+      if (isRetryable && modelName !== MODEL_PRIORITY[MODEL_PRIORITY.length - 1]) {
+        console.warn(`[Verity] Model ${modelName} unavailable (${err?.status}), trying next...`);
         continue;
       }
       throw err;
@@ -128,20 +137,32 @@ router.post("/analyze", async (req, res): Promise<void> => {
     const responseText = await tryGenerateContent(ANALYSIS_PROMPT(text, wordCount, sentenceCount));
 
     let analysisResult: Record<string, unknown>;
-    try {
-      analysisResult = JSON.parse(responseText);
-    } catch {
-      const jsonMatch = responseText.match(/```(?:json)?\n?([\s\S]*?)\n?```/);
-      if (jsonMatch) {
-        analysisResult = JSON.parse(jsonMatch[1]);
-      } else {
-        const objMatch = responseText.match(/\{[\s\S]*\}/);
-        if (objMatch) {
-          analysisResult = JSON.parse(objMatch[0]);
-        } else {
-          throw new Error("Could not parse AI response as JSON");
-        }
+    // Robust JSON extraction: bracket-balancing handles trailing text/multiple objects
+    const extractJson = (text: string): string => {
+      // Strip markdown code fences first
+      const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+      if (fenceMatch) return fenceMatch[1].trim();
+
+      // Find the first { and balance brackets to find the closing }
+      const start = text.indexOf('{');
+      if (start === -1) throw new Error("No JSON object in response");
+      let depth = 0, inString = false, escape = false;
+      for (let i = start; i < text.length; i++) {
+        const ch = text[i];
+        if (escape) { escape = false; continue; }
+        if (ch === '\\' && inString) { escape = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (inString) continue;
+        if (ch === '{') depth++;
+        if (ch === '}' && --depth === 0) return text.slice(start, i + 1);
       }
+      throw new Error("Unbalanced JSON in response");
+    };
+
+    try {
+      analysisResult = JSON.parse(responseText.trim());
+    } catch {
+      analysisResult = JSON.parse(extractJson(responseText));
     }
 
     analysisResult.analysedAt = new Date().toISOString();
