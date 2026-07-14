@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, GoogleGenerativeAIFetchError } from "@google/generative-ai";
 import { AnalyzeClaimBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -9,6 +9,14 @@ const apiKey = process.env.Google_Api_key;
 if (apiKey) {
   genAI = new GoogleGenerativeAI(apiKey);
 }
+
+// Models tried in order — 1.5-flash has the most generous free tier quota
+const MODEL_PRIORITY = [
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-8b",
+  "gemini-2.0-flash-lite",
+  "gemini-2.0-flash",
+];
 
 const ANALYSIS_PROMPT = (text: string, wordCount: number, sentenceCount: number) => `You are Verity, an AI Claim Intelligence Engine. Analyze the following text.
 
@@ -74,6 +82,32 @@ Unsupported statistic, Overgeneralization, Absolute claim, Causal leap, Correlat
 WRITING STYLE LABELS (pick 2-4 that best fit, probabilities should sum to ~100):
 Human writing, AI-assisted writing, Marketing copy, Academic writing, News reporting, Opinion/editorial, Technical writing, Sales copy, Social media style, Political messaging, Scientific communication, Persuasive essay`;
 
+async function tryGenerateContent(prompt: string): Promise<string> {
+  if (!genAI) throw new Error("AI service not configured");
+  
+  for (const modelName of MODEL_PRIORITY) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: {
+          responseMimeType: "application/json",
+          maxOutputTokens: 8192,
+        },
+      });
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } catch (err: any) {
+      const is429 = err?.status === 429 || err?.message?.includes("429") || err?.message?.includes("Too Many Requests") || err?.message?.includes("RESOURCE_EXHAUSTED");
+      if (is429 && modelName !== MODEL_PRIORITY[MODEL_PRIORITY.length - 1]) {
+        // Try next model
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("All models exhausted");
+}
+
 router.post("/analyze", async (req, res): Promise<void> => {
   if (!genAI) {
     res.status(503).json({ error: "AI service not configured. Google_Api_key environment variable is missing." });
@@ -91,27 +125,16 @@ router.post("/analyze", async (req, res): Promise<void> => {
   const sentenceCount = text.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
-      generationConfig: {
-        responseMimeType: "application/json",
-        maxOutputTokens: 8192,
-      },
-    });
-
-    const result = await model.generateContent(ANALYSIS_PROMPT(text, wordCount, sentenceCount));
-    const responseText = result.response.text();
+    const responseText = await tryGenerateContent(ANALYSIS_PROMPT(text, wordCount, sentenceCount));
 
     let analysisResult: Record<string, unknown>;
     try {
       analysisResult = JSON.parse(responseText);
     } catch {
-      // Fallback: strip markdown code blocks if present
       const jsonMatch = responseText.match(/```(?:json)?\n?([\s\S]*?)\n?```/);
       if (jsonMatch) {
         analysisResult = JSON.parse(jsonMatch[1]);
       } else {
-        // Last resort: find JSON object in response
         const objMatch = responseText.match(/\{[\s\S]*\}/);
         if (objMatch) {
           analysisResult = JSON.parse(objMatch[0]);
@@ -131,7 +154,17 @@ router.post("/analyze", async (req, res): Promise<void> => {
     }
 
     res.json(analysisResult);
-  } catch (err) {
+  } catch (err: any) {
+    const is429 = err?.status === 429 || err?.message?.includes("429") || err?.message?.includes("Too Many Requests") || err?.message?.includes("RESOURCE_EXHAUSTED") || err?.message?.includes("quota");
+    
+    if (is429) {
+      req.log.warn({ err }, "Gemini API rate limit hit");
+      res.status(429).json({
+        error: "API quota reached. Your Google AI free-tier limit has been hit. Please wait a minute and try again, or enable billing on your Google AI Studio account for higher limits.",
+      });
+      return;
+    }
+
     req.log.error({ err }, "AI analysis failed");
     res.status(500).json({ error: "Analysis failed. Please try again." });
   }

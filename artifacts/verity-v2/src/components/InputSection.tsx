@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Scan, ClipboardPaste, ArrowRight, CornerDownLeft } from "lucide-react";
+import { Scan, ClipboardPaste, CornerDownLeft } from "lucide-react";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
+import { LiveReadability } from "./LiveReadability";
 
 interface InputSectionProps {
   onAnalyze: (text: string) => void;
@@ -66,6 +67,11 @@ export function InputSection({ onAnalyze, isLoading }: InputSectionProps) {
             disabled={isLoading}
           />
           
+          {/* Live readability meter */}
+          <div className="px-4 pb-1 border-t border-white/5 bg-black/10">
+            <LiveReadability text={text} />
+          </div>
+
           <div className="p-4 bg-black/20 flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs text-white/30">
               <AnimatePresence>

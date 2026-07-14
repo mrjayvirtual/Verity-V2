@@ -4,6 +4,8 @@ import { AnalysisResult } from "@workspace/api-client-react";
 import { Gauge } from "./Gauge";
 import { ScoreCard } from "./ScoreCard";
 import { FlagCard } from "./FlagCard";
+import { RadarChart } from "./RadarChart";
+import { TypewriterText } from "./TypewriterText";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { getRiskColor } from "@/lib/colors";
@@ -114,7 +116,7 @@ export function Dashboard({ result, onSave, isSaving }: DashboardProps) {
             <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
             <h3 className="text-sm font-mono text-indigo-400 uppercase tracking-widest mb-3">Intelligence Summary</h3>
             <p className="text-lg text-white/90 leading-relaxed">
-              {result.summary}
+              <TypewriterText text={result.summary} speed={14} />
             </p>
           </motion.div>
         </div>
@@ -165,6 +167,16 @@ export function Dashboard({ result, onSave, isSaving }: DashboardProps) {
           />
         </div>
       </div>
+
+      {/* RADAR CHART */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.7, delay: 0.4 }}
+        className="glass-panel rounded-2xl p-8"
+      >
+        <RadarChart scores={result.scores} />
+      </motion.div>
 
       {/* BOTTOM SECTION: STYLE & FLAGS */}
       <div className="grid lg:grid-cols-[1fr_2fr] gap-8">
