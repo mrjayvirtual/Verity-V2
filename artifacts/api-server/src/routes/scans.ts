@@ -1,9 +1,9 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { desc, eq } from "drizzle-orm";
 import { db, scansTable } from "@workspace/db";
 import { CreateScanBody, ListScansQueryParams, GetScanParams, DeleteScanParams } from "@workspace/api-zod";
 
-const router: IRouter = Router();
+const router = Router();
 
 // GET /scans/stats — MUST be before /:id to avoid route conflict
 router.get("/scans/stats", async (_req: Request, res: Response): Promise<void> => {
