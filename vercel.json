@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "buildCommand": "pnpm install && pnpm --filter @workspace/verity-v2 run build",
+  "outputDirectory": "artifacts/verity-v2/dist/public",
+  "installCommand": "pnpm install",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index" }
+  ],
+  "functions": {
+    "api/index.ts": {
+      "maxDuration": 30
+    }
+  },
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
