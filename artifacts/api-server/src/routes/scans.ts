@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { desc, eq } from "drizzle-orm";
 import { db, scansTable } from "@workspace/db";
 import { CreateScanBody, ListScansQueryParams, GetScanParams, DeleteScanParams } from "@workspace/api-zod";
@@ -6,7 +6,7 @@ import { CreateScanBody, ListScansQueryParams, GetScanParams, DeleteScanParams }
 const router: IRouter = Router();
 
 // GET /scans/stats — MUST be before /:id to avoid route conflict
-router.get("/scans/stats", async (req, res): Promise<void> => {
+router.get("/scans/stats", async (_req: Request, res: Response): Promise<void> => {
   const allScans = await db.select().from(scansTable);
 
   if (allScans.length === 0) {
@@ -60,7 +60,7 @@ router.get("/scans/stats", async (req, res): Promise<void> => {
 });
 
 // GET /scans
-router.get("/scans", async (req, res): Promise<void> => {
+router.get("/scans", async (req: Request, res: Response): Promise<void> => {
   const params = ListScansQueryParams.safeParse(req.query);
   const limit = params.success && params.data.limit ? params.data.limit : 20;
 
@@ -74,7 +74,7 @@ router.get("/scans", async (req, res): Promise<void> => {
 });
 
 // POST /scans
-router.post("/scans", async (req, res): Promise<void> => {
+router.post("/scans", async (req: Request, res: Response): Promise<void> => {
   const parsed = CreateScanBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -94,7 +94,7 @@ router.post("/scans", async (req, res): Promise<void> => {
 });
 
 // GET /scans/:id
-router.get("/scans/:id", async (req, res): Promise<void> => {
+router.get("/scans/:id", async (req: Request, res: Response): Promise<void> => {
   const params = GetScanParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: "Invalid scan ID" });
@@ -115,7 +115,7 @@ router.get("/scans/:id", async (req, res): Promise<void> => {
 });
 
 // DELETE /scans/:id
-router.delete("/scans/:id", async (req, res): Promise<void> => {
+router.delete("/scans/:id", async (req: Request, res: Response): Promise<void> => {
   const params = DeleteScanParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: "Invalid scan ID" });

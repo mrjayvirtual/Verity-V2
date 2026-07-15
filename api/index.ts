@@ -11,6 +11,6 @@
  *   SESSION_SECRET  — Express session signing secret
  *   DATABASE_URL    — PostgreSQL connection string
  */
-import app from "../artifacts/api-server/src/app";
+import app from "../artifacts/api-server/src/app.js";
 
 export default app;

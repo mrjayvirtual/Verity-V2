@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { GoogleGenerativeAI, GoogleGenerativeAIFetchError } from "@google/generative-ai";
 import { AnalyzeClaimBody } from "@workspace/api-zod";
 
@@ -117,7 +117,7 @@ async function tryGenerateContent(prompt: string): Promise<string> {
   throw new Error("All models exhausted");
 }
 
-router.post("/analyze", async (req, res): Promise<void> => {
+router.post("/analyze", async (req: Request, res: Response): Promise<void> => {
   if (!genAI) {
     res.status(503).json({ error: "AI service not configured. Google_Api_key environment variable is missing." });
     return;
@@ -130,8 +130,8 @@ router.post("/analyze", async (req, res): Promise<void> => {
   }
 
   const { text } = parsed.data;
-  const wordCount = text.trim().split(/\s+/).filter(w => w.length > 0).length;
-  const sentenceCount = text.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
+  const wordCount = text.trim().split(/\s+/).filter((w: string) => w.length > 0).length;
+  const sentenceCount = text.split(/[.!?]+/).filter((s: string) => s.trim().length > 0).length;
 
   try {
     const responseText = await tryGenerateContent(ANALYSIS_PROMPT(text, wordCount, sentenceCount));
@@ -179,14 +179,14 @@ router.post("/analyze", async (req, res): Promise<void> => {
     const is429 = err?.status === 429 || err?.message?.includes("429") || err?.message?.includes("Too Many Requests") || err?.message?.includes("RESOURCE_EXHAUSTED") || err?.message?.includes("quota");
     
     if (is429) {
-      req.log.warn({ err }, "Gemini API rate limit hit");
+      console.warn({ err }, "Gemini API rate limit hit");
       res.status(429).json({
         error: "API quota reached. Your Google AI free-tier limit has been hit. Please wait a minute and try again, or enable billing on your Google AI Studio account for higher limits.",
       });
       return;
     }
 
-    req.log.error({ err }, "AI analysis failed");
+    console.error({ err }, "AI analysis failed");
     res.status(500).json({ error: "Analysis failed. Please try again." });
   }
 });
