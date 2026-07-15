@@ -1,8 +1,8 @@
-import { Router, type IRouter, type Request, type Response } from "express";
-import { GoogleGenerativeAI, GoogleGenerativeAIFetchError } from "@google/generative-ai";
+import { Router, type Request, type Response } from "express";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { AnalyzeClaimBody } from "@workspace/api-zod";
 
-const router: IRouter = Router();
+const router = Router();
 
 let genAI: GoogleGenerativeAI | null = null;
 const apiKey = process.env.Google_Api_key;
@@ -78,10 +78,11 @@ SCORING GUIDANCE (be honest and calibrated — avoid extremes unless clearly war
 - overallTrustSignal: Holistic signal — weight reasoning and evidence most heavily
 
 FLAG TYPES to detect (flag only what is genuinely present — be selective, not exhaustive):
-Unsupported statistic, Overgeneralization, Absolute claim, Causal leap, Correlation vs causation, Appeal to authority, Appeal to emotion, Cherry-picked example, Confirmation bias, False certainty, Clickbait language, Speculative prediction, Vague reference, Missing context, Loaded wording, Sensationalism, Scientific-sounding language, AI hallucination signal, Circular reasoning, False dilemma, False equivalence, Slippery slope, Bandwagon, Ad hominem, Appeal to fear, Hasty generalization, Red herring, Missing evidence, Anonymous sourcing, Weak analogy, Oversimplification
+Unsupported statistic, Overgeneralization, Absolute claim, Causal leap, Correlation vs causation, Appeal to authority, Appeal to emotion, Cherry-picked example, Confirmation bias, False certainty
 
 WRITING STYLE LABELS (pick 2-4 that best fit, probabilities should sum to ~100):
-Human writing, AI-assisted writing, Marketing copy, Academic writing, News reporting, Opinion/editorial, Technical writing, Sales copy, Social media style, Political messaging, Scientific communication, Persuasive essay`;
+Human writing, AI-assisted writing, Marketing copy, Academic writing, News reporting, Opinion/editorial, Technical writing, Sales copy, Social media style, Political messaging, Scientific writing
+`;
 
 async function tryGenerateContent(prompt: string): Promise<string> {
   if (!genAI) throw new Error("AI service not configured");
