@@ -3,17 +3,17 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
-import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
+// Replit-specific plugins are only loaded when running inside Replit
+const isReplit = process.env.REPL_ID !== undefined;
+const isDevMode = process.env.NODE_ENV !== 'production' && !process.argv.includes('build');
 
 // PORT and BASE_PATH are only required in dev mode (not during Vercel/CI builds)
-const isBuild = process.argv.includes('build') || process.env.NODE_ENV === 'production';
-
 const rawPort = process.env.PORT;
-if (!isBuild && !rawPort) {
+if (isDevMode && !rawPort) {
   throw new Error('PORT environment variable is required but was not provided.');
 }
 const port = Number(rawPort ?? 5173);
-if (!isBuild && (Number.isNaN(port) || port <= 0)) {
+if (isDevMode && (Number.isNaN(port) || port <= 0)) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
@@ -24,14 +24,11 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    runtimeErrorOverlay(),
-    ...(process.env.NODE_ENV !== 'production' &&
-    process.env.REPL_ID !== undefined
+    ...(isReplit && isDevMode
       ? [
+          (await import('@replit/vite-plugin-runtime-error-modal')).default(),
           await import('@replit/vite-plugin-cartographer').then((m) =>
-            m.cartographer({
-              root: path.resolve(import.meta.dirname, '..'),
-            }),
+            m.cartographer({ root: path.resolve(import.meta.dirname, '..') }),
           ),
           await import('@replit/vite-plugin-dev-banner').then((m) =>
             m.devBanner(),

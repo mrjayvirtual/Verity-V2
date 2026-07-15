@@ -14,6 +14,31 @@ async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
   await rm(distDir, { recursive: true, force: true });
 
+  // Vercel serverless entry — Express app only, no listen() call.
+  // api/index.ts at the repo root imports this as its default export.
+  await esbuild({
+    entryPoints: [path.resolve(artifactDir, "src/app.ts")],
+    platform: "node",
+    bundle: true,
+    format: "esm",
+    outdir: distDir,
+    outExtension: { ".js": ".mjs" },
+    logLevel: "info",
+    external: [
+      "*.node", "sharp", "better-sqlite3", "sqlite3", "canvas", "bcrypt",
+      "argon2", "fsevents", "pg-native",
+    ],
+    sourcemap: "linked",
+  });
+
+  // Rename to avoid collision with the main entry build below
+  const { rename } = await import("node:fs/promises");
+  await rename(
+    path.resolve(distDir, "app.mjs"),
+    path.resolve(distDir, "vercel-handler.mjs"),
+  );
+
+  // Main Replit entry — full server with listen()
   await esbuild({
     entryPoints: [path.resolve(artifactDir, "src/index.ts")],
     platform: "node",
