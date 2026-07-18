@@ -1,223 +1,194 @@
-# Verity V2 — AI Claim Intelligence Platform
+# Verity V2
 
-> **Not a fact-checker.** Verity analyzes the *quality* of reasoning, communication reliability, evidence strength, and confidence calibration in written text. It does not verify factual truth.
+**AI Claim Intelligence Engine** - Analyze communication quality, reasoning patterns, and evidence signals
 
-Built by **MRJAYVIRTUAL** · Creativity Meets Technology
+## Overview
 
----
+Verity V2 is a web application that analyzes claims and statements for:
+- **Communication Reliability** - Clarity, precision, and language quality
+- **Reasoning Quality** - Logical coherence and valid inferences
+- **Evidence Strength** - Quality and quantity of supporting evidence
+- **Confidence Calibration** - Alignment between expressed confidence and evidence
+- **Source Quality** - Named sources, experts, and citations
+- **Transparency** - Acknowledgment of assumptions and limitations
+- **Overall Trust Signal** - Holistic assessment
 
-## What It Does
+**Important:** This tool analyzes *communication quality*, not factual truth.
 
-Paste any piece of writing — a news headline, article excerpt, social post, report, or argument — and Verity scores it across 7 intelligence dimensions:
+## Tech Stack
 
-| Dimension | What It Measures |
-|-----------|-----------------|
-| Communication Reliability | Overall signal trustworthiness |
-| Reasoning Quality | Logic structure, fallacies, inference strength |
-| Evidence Strength | Specificity and verifiability of supporting claims |
-| Confidence Calibration | Whether confidence matches the evidence on hand |
-| Source Quality | Named, authoritative, or verifiable references |
-| Transparency | Disclosure of limitations, bias, and methodology |
-| Overall Trust Signal | Composite weighted score |
-
-Each scan also returns:
-- **Claim flags** — specific phrases tagged with category, severity, and reasoning
-- **Writing style estimates** — reading level, tone, formality
-- **Risk level** — `low` / `medium` / `high` / `critical`
-- **Intelligence Summary** — human-readable narrative
-- **Scan history** — all past analyses stored and searchable
-
----
-
-## Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 19 + Vite 6 + TypeScript |
-| Styling | Tailwind CSS v4 + Framer Motion |
-| Backend | Express 5 + Node.js 24 + TypeScript |
-| AI Engine | Google Gemini (`gemini-3.5-flash` via `@google/generative-ai`) |
-| Database | PostgreSQL + Drizzle ORM (JSONB result storage) |
-| API Contract | OpenAPI 3.1 → Orval codegen (typed hooks + Zod validators) |
-| Monorepo | pnpm workspaces |
-
----
+- **Frontend:** React + TypeScript + Tailwind CSS + Vite
+- **Backend API:** Express.js + TypeScript
+- **AI:** Google Generative AI (Gemini)
+- **Database:** PostgreSQL + Drizzle ORM
+- **Deployment:** Vercel
+- **Monorepo:** pnpm workspaces
 
 ## Project Structure
 
 ```
-verity-v2/
+.
 ├── artifacts/
-│   ├── api-server/          # Express API (port 8080)
-│   │   └── src/routes/
-│   │       ├── analyze.ts   # POST /api/analyze — Gemini AI call
-│   │       └── scans.ts     # CRUD /api/scans + /api/scans/stats
-│   └── verity-v2/           # React frontend
-│       └── src/
-│           ├── pages/home.tsx
-│           └── components/
-│               ├── Dashboard.tsx      # Score gauges + radar chart
-│               ├── InputSection.tsx   # Textarea + live readability
-│               ├── RadarChart.tsx     # Animated hexagonal spider chart
-│               ├── TypewriterText.tsx # Animated summary reveal
-│               ├── LiveReadability.tsx# Real-time Flesch score
-│               ├── BeaconLight.tsx    # Cinematic scanning beam
-│               └── PhoenixLogo.tsx    # Brand emblem
-├── lib/
-│   ├── api-spec/openapi.yaml  # API source of truth
-│   ├── api-client-react/      # Orval-generated React Query hooks
-│   ├── api-zod/               # Orval-generated Zod validators
-│   └── db/src/schema/         # Drizzle schema (scansTable)
-└── pnpm-workspace.yaml
+│   ├── api-server/          # Express API server
+│   ├── verity-v2/           # React frontend (Vite)
+│   └── db/                  # Database schema & migrations
+├── packages/
+│   ├── api-client-react/    # React hooks for API
+│   ├── api-zod/             # API validation schemas
+│   └── shared-types/        # Shared TypeScript types
+├── api/                     # Vercel serverless handler
+└── vercel.json              # Vercel configuration
 ```
 
----
-
-## Setup
+## Getting Started
 
 ### Prerequisites
 
-- Node.js 20+
-- pnpm 9+
-- PostgreSQL database
-- Google AI Studio API key → [aistudio.google.com](https://aistudio.google.com)
+- Node.js 18+
+- pnpm 8+
+- PostgreSQL 14+ (for production)
+- Google AI API key (get one at [Google AI Studio](https://aistudio.google.com/apikey))
 
-### 1. Clone & Install
+### Development
 
 ```bash
-git clone https://github.com/mrjayvirtual/Verity-V2.git
-cd Verity-V2
+# Install dependencies
 pnpm install
+
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your API keys
+
+# Start development server
+pnpm dev
 ```
 
-### 2. Environment Variables
-
-Copy the example file and fill in your values:
+### Build
 
 ```bash
-cp .env.example .env
+# Build all packages
+pnpm build
+
+# Build specific workspace
+pnpm --filter @workspace/verity-v2 build
+pnpm --filter @workspace/api-server build
 ```
 
-| Variable | Description |
-|----------|-------------|
-| `Google_Api_key` | Google AI Studio API key (mixed-case — must match exactly) |
-| `SESSION_SECRET` | Random string for Express session signing |
-| `DATABASE_URL` | PostgreSQL connection string |
-
-> ⚠️ The secret name is `Google_Api_key` (not `GOOGLE_API_KEY`). The server reads `process.env.Google_Api_key` — match it exactly.
-
-### 3. Push Database Schema
+### Type Checking
 
 ```bash
-pnpm --filter @workspace/db run push
+pnpm typecheck
 ```
 
-### 4. Run (Development)
-
-In two separate terminals:
-
-```bash
-# Terminal 1 — API server (port 8080)
-pnpm --filter @workspace/api-server run dev
-
-# Terminal 2 — Frontend (port 5173 or configured port)
-pnpm --filter @workspace/verity-v2 run dev
-```
-
----
-
-## API Reference
+## API Endpoints
 
 ### `POST /api/analyze`
 
-Analyze a piece of text.
+Analyze a claim or statement.
 
-**Request body:**
+**Request:**
 ```json
-{ "text": "string (50–50000 chars)" }
+{
+  "text": "Your claim or statement here"
+}
 ```
 
 **Response:**
 ```json
 {
   "scores": {
-    "communicationReliability": 72,
-    "reasoningQuality": 65,
-    "evidenceStrength": 40,
-    "confidenceCalibration": 58,
-    "sourceQuality": 35,
-    "transparency": 50,
-    "overallTrustSignal": 55
+    "communicationReliability": 75,
+    "reasoningQuality": 68,
+    "evidenceStrength": 82,
+    "confidenceCalibration": 70,
+    "sourceQuality": 65,
+    "transparency": 72,
+    "overallTrustSignal": 72
   },
-  "flags": [
-    {
-      "type": "Unsupported statistic",
-      "category": "Evidence",
-      "severity": "high",
-      "snippet": "...",
-      "reasoning": "..."
-    }
-  ],
+  "flags": [...],
+  "writingStyle": [...],
+  "summary": "...",
   "riskLevel": "medium",
-  "intelligenceSummary": "...",
-  "writingStyle": { "readingLevel": "...", "tone": "...", "formality": "..." },
-  "analysisDisclaimer": "This is an analysis of communication quality...",
-  "analysedAt": "2026-07-14T00:00:00.000Z",
-  "wordCount": 142,
-  "sentenceCount": 8
+  "wordCount": 150,
+  "sentenceCount": 8,
+  "readabilityScore": 75
 }
 ```
 
-### `GET /api/scans` — Scan history (paginated)
-### `GET /api/scans/stats` — Aggregate stats
-### `GET /api/scans/:id` — Single scan
-### `DELETE /api/scans/:id` — Delete scan
+### `GET /api/healthz`
 
-Full spec: [`lib/api-spec/openapi.yaml`](lib/api-spec/openapi.yaml)
+Health check endpoint.
 
----
-
-## AI Model
-
-Verity uses a model cascade on every request, trying in order:
-
-1. `gemini-3.5-flash` ← primary
-2. `gemini-2.0-flash`
-3. `gemini-2.0-flash-lite`
-4. `gemini-2.5-flash`
-5. `gemini-2.5-flash-lite`
-
-The v1beta API endpoint is used for all models — `responseMimeType: "application/json"` requires it (unavailable in the v1 stable API).
-
----
-
-## Regenerate API Client
-
-After editing `lib/api-spec/openapi.yaml`:
-
-```bash
-pnpm --filter @workspace/api-spec run codegen
+**Response:**
+```json
+{
+  "status": "ok"
+}
 ```
 
-This regenerates typed React Query hooks in `lib/api-client-react` and Zod validators in `lib/api-zod`.
+### `GET /api/scans`
 
----
+List recent scans.
 
-## Architecture Notes
+### `POST /api/scans`
 
-- **JSONB result storage** — Full `AnalysisResult` stored as JSONB in Postgres. Avoids schema churn as AI output evolves.
-- **Route ordering** — `/scans/stats` must be registered before `/scans/:id` in Express to prevent the wildcard eating the stats route.
-- **No fact-checking claims** — Every response includes `analysisDisclaimer` enforced server-side. Core brand rule.
+Create a new scan.
 
----
+### `GET /api/scans/:id`
 
-## Contact
+Get a specific scan.
 
-**MRJAYVIRTUAL** · Creativity Meets Technology  
-mrjayvirtual@proton.me  
-[linkedin.com/in/joshua-ikpendu](https://www.linkedin.com/in/joshua-ikpendu)  
-[github.com/mrjayvirtual](https://github.com/mrjayvirtual)
+### `DELETE /api/scans/:id`
 
----
+Delete a scan.
 
-*Verity does not verify facts. It analyzes how well reasoning is communicated.*
+### `GET /api/scans/stats`
+
+Get aggregate statistics.
+
+## Environment Variables
+
+See `.env.example` for all required variables:
+
+```bash
+# Google AI
+Google_Api_key=your_gemini_api_key
+
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/verity
+
+# Session
+SESSION_SECRET=your_secret_key
+
+# Node
+NODE_ENV=production
+```
+
+## Deployment
+
+The app is deployed on Vercel:
+
+**Production:** https://verity-v2.vercel.app
+
+### Vercel Configuration
+
+- **Framework:** None (custom)
+- **Build Command:** `pnpm --filter @workspace/verity-v2 run build`
+- **Output Directory:** `artifacts/verity-v2/dist/public`
+- **API Route:** `api/index.ts` (serverless function)
+
+## Contributing
+
+1. Create a feature branch
+2. Make changes
+3. Run `pnpm typecheck` to verify types
+4. Commit with clear messages
+5. Push and create a pull request
+
+## License
+
+MIT
+
+## Support
+
+For issues or questions, please open an GitHub issue.
